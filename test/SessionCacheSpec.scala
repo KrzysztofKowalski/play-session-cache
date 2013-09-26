@@ -1,4 +1,3 @@
-package fly.play.sessionCache
 import org.specs2.Specification
 import play.api.mvc.Results
 import play.api.mvc.Action
