@@ -35,7 +35,7 @@ Add the dependency:
 
 ``` scala
 	val appDependencies = Seq(
-      "com.github.krzysztofkowalski" %% "play-session-cache" % "1.2.0"
+      "com.github.krzysztofkowalski" %% "play-session-cache" % "1.2.0.1"
     )
 ```
 
