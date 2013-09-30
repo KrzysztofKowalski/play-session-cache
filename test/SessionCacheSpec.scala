@@ -1,79 +1,70 @@
-import org.specs2.Specification
-import play.api.mvc.Results
-import play.api.mvc.Action
-import play.api.test.FakeRequest
-import play.api.mvc.Call
-import play.api.mvc.AnyContent
-import play.api.mvc.AnyContentAsEmpty
-import play.api.test.Helpers
-import play.api.mvc.Cookie
+import com.github.krzysztofkowalski.sessionCache._
+import play.api.mvc._
+import play.api.test.{WithApplication, FakeRequest, Helpers}
+import scala.concurrent.{Future, ExecutionContext}
+
+
+import org.specs2.mutable._
+import play.api.test._
+import models._
+import scala.util.Success
+import scala.util.Success
 
 object SessionCacheSpec extends Specification with Results {
-  def is =
-    "SessionCache" ^
-      "without cookie" !
-      {
-	    var sessionPrefix:String = null
-    
-        val action = SessionCache { sessionCache =>
+
+  implicit val timeout = akka.util.Timeout(512)
+
+  "SessionCache" should {
+
+    "without cookie" in new WithApplication() {
+      var sessionPrefix: String = null
+      val action = SessionCache {
+        sessionCache => Action {
+          sessionPrefix = sessionCache.asInstanceOf[CacheWrapper].prefix
+          Ok
+        }
+      }
+      val parsedRequest = action.parser(FakeRequest()).run.value.get
+      parsedRequest.isSuccess mustEqual true
+      var cookieValue: String = null
+      val cookieSet = (parsedRequest.get: @unchecked) match {
+        case Right(xbody) => {
+          val f = FakeRequest().withBody(xbody)
+          val result = action(f)
+          val cookies = Helpers cookies result
+          (cookies get SessionCache.cookieName) must beLike {
+            case Some(s) => {
+              cookieValue = s.value
+              s.value.size must be_>(0)
+            }
+          }
+        }
+      }
+      cookieSet and cookieValue === sessionPrefix
+    }
+
+    "with cookie" in new WithApplication() {
+      var sessionPrefix: String = null
+      val action = SessionCache {
+        sessionCache =>
           Action {
             sessionPrefix = sessionCache.asInstanceOf[CacheWrapper].prefix
             Ok
           }
-        }
-
-        val parsedRequest = action.parser(FakeRequest()).run.value.get
-
-        var cookieValue:String = null
-        
-        val cookieSet = 
-        parsedRequest match {
-          case Right(body) => {
-            val f = FakeRequest().copy(body = body)
-            val result = action(f)
-            val cookies = Helpers cookies result
-
-            (cookies get SessionCache.COOKIE_NAME) must beLike {
-              case Some(s) => {
-            	  cookieValue = s.value                
-            	  s.value.size must be_>(0)
-              }
-            }
+      }
+      val parsedRequest = action.parser(FakeRequest() withCookies SessionCache.cookie("abc")).run.value.get
+      parsedRequest.isSuccess mustEqual true
+      val cookieNotSet = (parsedRequest.get: @unchecked) match {
+        case Right(xbody) => {
+          val f = FakeRequest().withBody(xbody)
+          val result = action(f)
+          val cookies = Helpers cookies result
+          (cookies get SessionCache.cookieName) must beLike {
+            case None => ok
           }
         }
-        
-        cookieSet and cookieValue === sessionPrefix
-
-      } ^
-      "with cookie" !
-      {
-        var sessionPrefix:String = null
-        
-        val action = SessionCache { sessionCache =>
-          Action { 
-            sessionPrefix = sessionCache.asInstanceOf[CacheWrapper].prefix
-            Ok
-          }
-        }
-        
-        val parsedRequest = action
-        		.parser(FakeRequest() withCookies Cookie(SessionCache.COOKIE_NAME, "abc"))
-        		.run.value.get
-
-        val cookieNotSet = 
-          parsedRequest match {
-          case Right(body) => {
-            val f = FakeRequest().copy(body = body)
-            val result = action(f)
-            val cookies = Helpers cookies result
-
-            (cookies get SessionCache.COOKIE_NAME) must beLike {
-              case None => ok
-            }
-          }
-        }
-        
-        cookieNotSet and sessionPrefix === "abc"
-
-      } ^ end
+      }
+      cookieNotSet and sessionPrefix === "abc"
+    }
+  }
 }

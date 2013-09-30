@@ -81,6 +81,15 @@ object SessionCache {
     request.cookies get COOKIE_NAME map (c => new CacheWrapper(c.value))
 
   /**
+   *
+   * @param c
+   * @return
+   */
+  def cookie(c: String): Cookie = Cookie(COOKIE_NAME, c)
+
+  def cookieName: String = COOKIE_NAME
+
+  /**
    * The actual action wrapper that allows you to execute an action which 
    * can use the session cache
    */
